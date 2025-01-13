@@ -7,6 +7,7 @@ import ParkingList from "@/components/ParkingList/ParkingList";
 import { LoadingSpinner } from "@/components/ui/loadingspinner";
 import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
 import { useParkingSearchStore } from "@/stores/parkingSearchStore";
+import version from "./version.json"; // Importation du fichier version.json
 
 function App() {
   const { parkingName } = useParkingSearchStore();
@@ -16,12 +17,12 @@ function App() {
     queryFn: () => ParkingsAngersEndpointsQueryMethods.getAllParkings(parkingName),
   });
 
-  console.log(parkingName)
+  console.log(parkingName);
 
   return (
     <div className="flex flex-col gap-5 items-center">
       <h1 className="text-2xl font-bold text-center">
-        Where can I Park in Angers ? 👀
+        Where can I Park in Angers? 👀
       </h1>
       <ParkingListFilters
         onChange={(parkingName: string) => {
@@ -31,6 +32,9 @@ function App() {
       {isPending && <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />}
       {isError && <span>Something went wrong with the backend ...</span>}
       {data && <ParkingList parkings={data.parkings} />}
+      <footer className="text-sm text-center text-gray-500 mt-5">
+        Version: {version.version} {/* Affichage de la version */}
+      </footer>
     </div>
   );
 }

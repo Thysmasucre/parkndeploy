@@ -48,7 +48,11 @@ jobs:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
         region: ${{ secrets.AZURE_REGION }}
         template: ./infrastructure/main.bicep
-        parameters: project=${{ vars.PROJECT_NAME }} location=${{ secrets.AZURE_REGION }} swaLocation=${{ secrets.AZURE_SWA_REGION }} identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
+        parameters: |
+          project=${{ vars.PROJECT_NAME }}
+          location=${{ secrets.AZURE_REGION }}
+          swaLocation=${{ secrets.AZURE_SWA_REGION }}
+          identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
         resourceGroupName: ${{ env.AZURE_RG_NAME }}
 
     - name: Extract Git Tag Version
@@ -66,6 +70,10 @@ jobs:
         dotnet publish -c Release -o ./publish /p:Version=$APP_VERSION
       env:
         APP_VERSION: ${{ env.APP_VERSION }}
+    
+    - name: Update package.json version
+      run: npm version ${{ env.VERSION }} --no-git-tag-version
+      working-directory: ./frontend
 
 
   deploy_backend:
@@ -90,9 +98,9 @@ jobs:
       
     - name: Deploy backend to App Service
       uses: azure/webapps-deploy@v2
-      with: 
-        app-name: ${{ needs.deploy_infrastructure.outputs.appServiceName }} # Access to the previous job output to get the appServiceName deployed with bicep
-        package: ./backend/ParkNDeploy.Api/publish # Path to the previously published app
+      with:
+        app-name: ${{ secrets.AZURE_APP_SERVICE_NAME }}
+        package: ./publish
 
     - name: Extract Git Tag Version
       run: |
@@ -110,6 +118,9 @@ jobs:
       env:
         APP_VERSION: ${{ env.APP_VERSION }}
 
+    - name: Update package.json version
+      run: npm version ${{ env.VERSION }} --no-git-tag-version
+      working-directory: ./frontend
 
 
   deploy_frontend:
@@ -140,17 +151,14 @@ jobs:
     - name: Deploy frontend to Static Web App
       uses: azure/static-web-apps-deploy@v1
       with:
-        azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-        app_location: frontend/dist
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN }}
+        app_location: ./dist
         action: upload
-        skip_app_build: true
-        skip_api_build: true
 
     - name: Extract Git Tag Version
       run: |
         VERSION=${GITHUB_REF#refs/tags/}
-        echo "Version: $VERSION"
-        echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
 
     - name: Set version as environment variable
       run: echo "APP_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -161,6 +169,10 @@ jobs:
         dotnet publish -c Release -o ./publish /p:Version=$APP_VERSION
       env:
         APP_VERSION: ${{ env.APP_VERSION }}
+
+    - name: Update package.json version
+      run: npm version ${{ env.VERSION }} --no-git-tag-version
+      working-directory: ./frontend
 
 
   ci_frontend:
@@ -204,3 +216,64 @@ jobs:
       - name: Build the app in Release mode
         run: dotnet build -c Release
         working-directory: ./backend
+
+  ci_frontend_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: Build the React app
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: Create and upload frontend artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-artifact
+          path: ./frontend/dist
+
+  ci_backend_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0'
+
+      - name: Publish the app
+        run: dotnet publish -c Release -o ./publish
+        working-directory: ./backend
+
+      - name: Create and upload backend artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-artifact
+          path: ./backend/publish
+    
+  cd_pipeline:
+    runs-on: ubuntu-latest
+    needs: [ci_frontend_release, ci_backend_release]
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-artifact
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-artifact
+        
