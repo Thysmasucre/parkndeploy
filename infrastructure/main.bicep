@@ -38,7 +38,17 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
       project: project
       identifier: identifier
     }
+}
+
+
+module staticWebAppBackend 'modules/staticWebAppBackend.bicep' = {
+  name: 'staticWebAppBackend'
+  params: {
+    backendBindedResourceId: appService.outputs.appServiceId
+    swaName: staticWebApp.outputs.swaName
+    location: location
   }
+}
 
 // Export App Service Name
 output appServiceName string = appService.outputs.appServiceName
