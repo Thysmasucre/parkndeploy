@@ -1,0 +1,53 @@
+name: CI Workflow
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  ci_frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: Build the React app
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-artifact
+          path: ./frontend/dist
+
+  ci_backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0'
+
+      - name: Build the backend
+        run: dotnet build -c Release
+        working-directory: ./backend
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-artifact
+          path: ./backend/publish

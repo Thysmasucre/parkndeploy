@@ -1,0 +1,36 @@
+name: CD Workflow
+
+on:
+  workflow_run:
+    workflows:
+      - CI Workflow
+    types:
+      - completed
+
+  workflow_dispatch: # Permet le déclenchement manuel
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-artifact
+
+      - name: Deploy frontend to Azure
+        uses: azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN }}
+          app_location: ./dist
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-artifact
+
+      - name: Deploy backend to Azure
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.AZURE_APP_SERVICE_NAME }}
+          package: ./publish
