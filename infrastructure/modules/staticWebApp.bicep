@@ -14,3 +14,4 @@ resource swa 'Microsoft.Web/staticSites@2022-09-01' = {
 }
 
 output swaName string = swa.name // Expose Static Web App name as we did for App Service for deployment purpose
+// test
